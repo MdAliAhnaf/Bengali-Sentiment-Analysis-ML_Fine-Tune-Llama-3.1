@@ -1,0 +1,735 @@
+sentiment_analysis_traditional-ML.ipynb file:
+
+#Installing dependencies for Bangla Natural Language Processing Toolkit
+!pip install bnlp_toolkit
+!pip install banglanltk
+
+import bnlp
+import banglanltk
+
+print(dir(bnlp))
+
+from bnlp import NLTKTokenizer
+print(dir(NLTKTokenizer))
+
+from bnlp import CleanText
+print(dir(CleanText))
+
+from bnlp import BengaliCorpus
+print(dir(BengaliCorpus))
+
+print(BengaliCorpus.stopwords)
+
+print(BengaliCorpus.punctuations)
+
+print(BengaliCorpus.digits)
+
+print(BengaliCorpus.letters)
+
+print(dir(banglanltk))
+
+from banglanltk import clean_text
+print(dir(clean_text))
+
+from banglanltk import stemmer
+print(dir(stemmer))
+
+import pandas as pd
+# Loading the dataset from the Excel file
+file_path = 'Dataset_Sentiment_Analysis_Task.xlsx'
+data = pd.read_excel(file_path)
+
+# Displaying the first few rows of the dataset to understand its structure
+print(data.head())
+print(data.info())
+
+from bnlp import CleanText
+
+clean_text = CleanText(
+   fix_unicode=True,
+   unicode_norm=True,
+   unicode_norm_form="NFKC",
+   remove_url=False,
+   remove_email=False,
+   remove_emoji=False,
+   remove_number=False,
+   remove_digits=False,
+   remove_punct=False,
+   replace_with_url="<URL>",
+   replace_with_email="<EMAIL>",
+   replace_with_number="<NUMBER>",
+   replace_with_digit="<DIGIT>",
+   replace_with_punct = "<PUNC>"
+)
+
+input_text = "company_x গ্রাহকদের জন্য খুবই দুঃখ জনক একটা খবর...…….. 📵 📵 । আপনি যদি company_xের গ্রাহক হয়ে থাকেন অবশ্যই সর্তকতার সাথে থাকুন কারন যে কোন সময় company_xে ক্যাশআউট করা বন্ধ হয়ে যেতে পারে । তাই নিজের কাষ্টের টাকা রাখুন নিরাপদে ।See Translation"
+clean_text = clean_text(input_text)
+print(clean_text)
+
+#importing necessary libraries 
+import warnings
+warnings.simplefilter("ignore")
+import numpy as np
+import json
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import StratifiedKFold, train_test_split, GridSearchCV, KFold
+from sklearn.metrics import classification_report, accuracy_score
+from sklearn.feature_extraction.text import TfidfVectorizer
+import re
+#importing necessary libraries for Bangla Natural Language Processing Toolkit
+#from banglanltk import word_tokenize, stemmer
+from bnlp import CleanText, BengaliCorpus
+from bnlp import NLTKTokenizer
+
+# Initializing CleanText from bnlp
+cleaner = CleanText(
+   fix_unicode=True,
+   unicode_norm=True,
+   unicode_norm_form="NFKC",
+   remove_url=False,
+   remove_email=False,
+   remove_emoji=False,
+   remove_number=False,
+   remove_digits=False,
+   remove_punct=False,
+   replace_with_url="<URL>",
+   replace_with_email="<EMAIL>",
+   replace_with_number="<NUMBER>",
+   replace_with_digit="<DIGIT>",
+   replace_with_punct="<PUNC>"
+)
+
+tokenizer = NLTKTokenizer()
+
+# Defining the preprocessing function
+def preprocess_text(text):
+    
+    # Cleaning the text using BNLP's CleanText
+    cleaned_text = cleaner(text)
+    
+    # Further cleaning
+    # re.sub() function to replace text that matches a regular expression pattern with a new value in a string
+    cleaned_text = re.sub(r'See Translation', '', cleaned_text, flags=re.IGNORECASE) # Remove unwanted phrases
+    cleaned_text = re.sub(r'।+', '।', cleaned_text)  # Replace multiple '।' with a single one
+    cleaned_text = re.sub(r',+', ',', cleaned_text)  # Replace multiple ',' with a single one
+    cleaned_text = re.sub(r'\?+', '?', cleaned_text)   # Replace multiple '?' with a single one
+    cleaned_text = re.sub(r'…+', '…', cleaned_text)  # Replace multiple '…' with a single one
+    cleaned_text = re.sub(r'\.+', '', cleaned_text)    # Remove specific punctuation marks (.)
+
+    # Removing digits and non-Bengali letters if needed
+    # cleaned_text = re.sub(f"[{BengaliCorpus.digits}]", '', cleaned_text)  # Remove Bengali digits
+    # cleaned_text = re.sub(f"[{BengaliCorpus.letter}]", '', cleaned_text)  # Remove Bengali letters if required
+
+    # Tokenizing the text using BNLP's NLTKTokenizer
+    tokens = tokenizer.sentence_tokenize(cleaned_text)
+    
+    # Removing stopwords
+    stopwords = BengaliCorpus.stopwords if hasattr(BengaliCorpus, 'stopwords') else []
+    tokens = [token for token in tokens if token.lower() not in stopwords] # Lowercase the tokens
+    #tokens = [token.lower() for token in tokens]
+    
+    # Applying stemming
+    # stemmed_tokens = [stemmer(token) for token in tokens] #not needed
+
+    # Reassembling the text
+    #Joining tokens into a single string                                       
+    cleaned_text = ' '.join(tokens)    #cleaned_text = ' '.join(stemmed_tokens)
+    
+    cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip() # Remove extra spaces
+    
+    return cleaned_text
+
+# Applying preprocessing
+data['processed_text'] = data['conversation_text'].apply(preprocess_text)
+
+# Printing processed text by sentiment
+sentiments = ['neutral', 'positive', 'negative']  # Adjust based on your data
+for sentiment in sentiments:
+    print(f"Sentiment: {sentiment}")
+    subset = data[data['sentiment'] == sentiment]
+    for index, row in subset.iterrows():
+        print(f"Processed Text: {row['processed_text']}")
+    print("\n" + "=" * 80 + "\n")
+
+# Feature Engineering with TF-IDF
+tfidf_vectorizer = TfidfVectorizer()
+X = tfidf_vectorizer.fit_transform(data['processed_text'])
+y = LabelEncoder().fit_transform(data['sentiment'])
+
+#Generating vocabulary size for LSTM's max_features (unique word count)
+vocab_size = len(tfidf_vectorizer.get_feature_names_out())
+print(f"Vocabulary Size: {vocab_size}")
+
+# Models for comparison
+from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier
+# TensorFlow/Keras for LSTM
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, LSTM, Embedding, SpatialDropout1D, Dropout
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.callbacks import History
+
+# Splitting the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Converting sparse matrices to dense
+X_train_dense = X_train.toarray()
+X_test_dense = X_test.toarray()
+
+# Defining Stratified K-Fold Cross-Validation
+skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+# Initializing results storage
+results_stratified = {}
+
+# Defining Grid Search parameters for each model
+
+param_grids = {
+    'LogisticRegression': {
+        'model': LogisticRegression(),
+        'params': {
+            'C': [0.1, 1, 10],
+            'solver': ['liblinear', 'saga']
+        }
+    },
+    'MultinomialNB': {
+        'model': MultinomialNB(),
+        'params': {}
+    },
+    'RandomForestClassifier': {
+        'model': RandomForestClassifier(),
+        'params': {
+            'n_estimators': [50, 100, 200],
+            'max_depth': [10, 20, 30]
+        }
+    },
+    'XGBClassifier': {
+        'model': XGBClassifier(),
+        'params': {
+            'n_estimators': [50, 100, 200],
+            'learning_rate': [0.01, 0.1, 0.2]
+        }
+    },
+    'LGBMClassifier': {
+        'model': LGBMClassifier(),
+        'params': {
+            'n_estimators': [50, 100, 200],
+            'learning_rate': [0.01, 0.1, 0.2]
+        }
+    }
+}
+
+# Function to evaluate model with Stratified K-Fold Cross-Validation and Grid Search
+def evaluate_model_with_grid_search(model_name, model, param_grid, X_train_dense, y_train, X_test_dense, y_test):
+    grid_search = GridSearchCV(estimator=model, param_grid=param_grid, cv=skf, scoring='accuracy', n_jobs=-1, verbose=1)
+    grid_search.fit(X_train_dense, y_train)
+    best_model = grid_search.best_estimator_
+    best_params = grid_search.best_params_
+
+    # Training and evaluating the best model
+    best_model.fit(X_train_dense, y_train)
+    y_pred_test = best_model.predict(X_test_dense)
+    test_accuracy = accuracy_score(y_test, y_pred_test)
+    
+    print(f"\nModel: {model_name}")
+    print(f"Best Parameters: {best_params}")
+    print(f"Test Accuracy: {test_accuracy:.4f}")
+    print(classification_report(y_test, y_pred_test))
+    
+    return best_model, test_accuracy
+
+# Training and evaluating each model using Grid Search
+for model_name, grid_params in param_grids.items():
+    model, test_accuracy = evaluate_model_with_grid_search(
+        model_name,
+        grid_params['model'],
+        grid_params['params'],
+        X_train_dense,
+        y_train,
+        X_test_dense,
+        y_test
+    )
+    results_stratified[model_name] = test_accuracy
+
+# LSTM Model Parameters
+# Preparing data for LSTM input
+max_len = X_train_dense.shape[1] # Length of the input sequences 
+embedding_dim = 64 # Adjusted embedding dimension
+
+# Building LSTM Model #update: increased max_features size to 5000 words
+lstm_model = Sequential()
+lstm_model.add(Embedding(input_dim=5000, output_dim=embedding_dim, input_length=max_len)) # The number of unique words in the dataset based on TF-IDF features in vocab_size
+lstm_model.add(SpatialDropout1D(0.2))
+lstm_model.add(LSTM(64, return_sequences=False, dropout=0.2, recurrent_dropout=0.2))
+lstm_model.add(Dense(32, activation='relu'))
+lstm_model.add(Dense(3, activation='softmax'))  # Output layer with 3 units for 3 sentiment classes
+lstm_model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+# Preparing data for LSTM input
+X_train_padded = pad_sequences(X_train_dense, maxlen=max_len)
+X_test_padded = pad_sequences(X_test_dense, maxlen=max_len) 
+
+# Training LSTM Model
+history = History()
+lstm_model.fit(X_train_padded, y_train, epochs=10, batch_size=32, validation_split=0.2, callbacks=[history])
+
+# Evaluating LSTM Model
+y_pred_lstm = np.argmax(lstm_model.predict(X_test_padded), axis=1)
+lstm_accuracy = accuracy_score(y_test, y_pred_lstm)
+
+print(f"LSTM Test Accuracy: {lstm_accuracy:.4f}")
+print(classification_report(y_test, y_pred_lstm))
+
+# Storing LSTM results in results_stratified for comparison
+results_stratified['LSTM'] = lstm_accuracy
+
+# Plotting accuracy and loss for LSTM
+plt.figure(figsize=(14, 6))
+plt.subplot(1, 2, 1)
+plt.plot(history.history['accuracy'], label='Training Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.title('LSTM Model Accuracy')
+plt.xlabel('Epoch')
+plt.ylabel('Accuracy')
+plt.legend()
+
+plt.subplot(1, 2, 2)
+plt.plot(history.history['loss'], label='Training Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.title('LSTM Model Loss')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend()
+
+plt.tight_layout()
+plt.show()
+
+# Save LSTM training history to JSON
+with open('lstm_training_history.json', 'w') as f:
+    json.dump(history.history, f)
+
+# Preparing results for comparison
+results_stratified_df = pd.DataFrame(list(results_stratified.items()), columns=['Model', 'Test Accuracy'])
+
+# Plotting model comparison using Seaborn
+plt.figure(figsize=(12, 6))
+sns.barplot(x='Test Accuracy', y='Model', data=results_stratified_df, palette='viridis')
+plt.title("Model's Comparison with Stratified K-Fold")
+plt.xlabel('Test Accuracy')
+plt.ylabel('Model')
+plt.show()
+
+print("Model's Comparison with Stratified K-Fold")
+for model_name, accuracy in results_stratified.items():
+    print(f"Model: {model_name}")
+    print(f"Test Accuracy: {accuracy:.4f}\n")
+
+# Converting sparse matrices to dense
+X_train_dense = X_train.toarray()
+X_test_dense = X_test.toarray()
+
+# Defining K-Fold Cross-Validation
+kf = KFold(n_splits=5, shuffle=True, random_state=42)
+
+# Initialize results storage
+
+results_kfold = {}
+
+# Defining Grid Search parameters for each model
+param_grids = {
+    'LogisticRegression': {
+        'model': LogisticRegression(),
+        'params': {
+            'C': [0.1, 1, 10],
+            'solver': ['liblinear', 'saga']
+        }
+    },
+    'MultinomialNB': {
+        'model': MultinomialNB(),
+        'params': {}
+    },
+    'RandomForestClassifier': {
+        'model': RandomForestClassifier(),
+        'params': {
+            'n_estimators': [50, 100, 200],
+            'max_depth': [10, 20, 30]
+        }
+    },
+    'XGBClassifier': {
+        'model': XGBClassifier(),
+        'params': {
+            'n_estimators': [50, 100, 200],
+            'learning_rate': [0.01, 0.1, 0.2]
+        }
+    },
+    'LGBMClassifier': {
+        'model': LGBMClassifier(),
+        'params': {
+            'n_estimators': [50, 100, 200],
+            'learning_rate': [0.01, 0.1, 0.2]
+        }
+    }
+}
+
+# Function to evaluate model with K-Fold Cross-Validation and Grid Search
+def evaluate_model_with_grid_search(model_name, model, param_grid, X_train_dense, y_train, X_test_dense, y_test):
+    grid_search = GridSearchCV(estimator=model, param_grid=param_grid, cv=kf, scoring='accuracy', n_jobs=-1, verbose=1)
+    grid_search.fit(X_train_dense, y_train)
+    best_model = grid_search.best_estimator_
+    best_params = grid_search.best_params_
+
+    # Train and evaluate the best model
+    best_model.fit(X_train_dense, y_train)
+    y_pred_test = best_model.predict(X_test_dense)
+    test_accuracy = accuracy_score(y_test, y_pred_test)
+    
+    print(f"\nModel: {model_name}")
+    print(f"Best Parameters: {best_params}")
+    print(f"Test Accuracy: {test_accuracy:.4f}")
+    print(classification_report(y_test, y_pred_test))
+    
+    return best_model, test_accuracy
+
+
+# Function to evaluate model with K-Fold Cross-Validation and Grid Search
+# def evaluate_model_with_grid_search(model_name, model, param_grid, X, y):
+#     grid_search = GridSearchCV(estimator=model, param_grid=param_grid, cv=kf, scoring='accuracy', n_jobs=-1, verbose=1)
+#     grid_search.fit(X, y)
+#     best_model = grid_search.best_estimator_
+#     best_params = grid_search.best_params_
+
+#     # Train and evaluate the best model
+#     best_model.fit(X_train, y_train)
+#     y_pred_test = best_model.predict(X_test)
+#     test_accuracy = accuracy_score(y_test, y_pred_test)
+    
+#     print(f"\nModel: {model_name}")
+#     print(f"Best Parameters: {best_params}")
+#     print(f"Test Accuracy: {test_accuracy:.4f}")
+#     print(classification_report(y_test, y_pred_test))
+    
+#     return best_model, test_accuracy
+
+# Training and evaluating each model using Grid Search
+for model_name, grid_params in param_grids.items():
+    model, test_accuracy = evaluate_model_with_grid_search(
+        model_name,
+        grid_params['model'],
+        grid_params['params'],
+        X_train_dense,
+        y_train,
+        X_test_dense,
+        y_test
+        # X_dense,
+        # y
+    )
+    results_kfold[model_name] = test_accuracy
+
+# Preparing results for comparison
+results_kfold_df = pd.DataFrame(list(results_kfold.items()), columns=['Model', 'Test Accuracy'])
+
+# Plotting model comparison using Seaborn
+plt.figure(figsize=(12, 6))
+sns.barplot(x='Test Accuracy', y='Model', data=results_kfold_df, palette='viridis')
+plt.title("Model's Comparison with K-Fold Only")
+plt.xlabel('Test Accuracy')
+plt.ylabel('Model')
+plt.show()
+
+print("Model's Comparison with K-Fold Only")
+for model_name, accuracy in results_kfold.items():
+    print(f"Model: {model_name}")
+    print(f"Test Accuracy: {accuracy:.4f}\n")
+
+# Prepare model's results for comparison
+results_stratified_df = pd.DataFrame(list(results_stratified.items()), columns=['Model', 'Test Accuracy (Stratified K-Fold)'])
+results_kfold_df = pd.DataFrame(list(results_kfold.items()), columns=['Model', 'Test Accuracy (K-Fold)'])
+
+# Merge results
+results_comparison_df = pd.merge(results_stratified_df, results_kfold_df, on='Model')
+
+# Save results to JSON
+with open('results_stratified.json', 'w') as f:
+    json.dump(results_stratified, f)
+
+with open('results_kfold.json', 'w') as f:
+    json.dump(results_kfold, f)
+
+with open('results_comparison.json', 'w') as f:
+    json.dump(results_comparison_df.to_dict(orient='records'), f)
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Plotting the comparison of results
+plt.figure(figsize=(14, 7))
+results_comparison_df = results_comparison_df.melt(id_vars='Model', 
+    value_vars=['Test Accuracy (Stratified K-Fold)', 'Test Accuracy (K-Fold)'], 
+    var_name='Fold Type', value_name='Test Accuracy')
+
+sns.barplot(x='Test Accuracy', y='Model', hue='Fold Type', data=results_comparison_df, palette='viridis')
+plt.title("Comparison of Model Test Accuracy: Stratified K-Fold vs K-Fold")
+plt.xlabel('Test Accuracy')
+plt.ylabel('Model')
+plt.legend(title='Fold Type')
+plt.show()
+
+
+
+Llama3.1_fine-tuning.ipynb file:
+
+import pandas as pd
+# Loading the dataset from the Excel file
+file_path = 'Dataset_Sentiment_Analysis_Task.xlsx'
+data = pd.read_excel(file_path)
+
+# Displaying the first few rows of the dataset to understand its structure
+print(data.head())
+print(data.info())
+
+#importing necessary libraries 
+import warnings
+warnings.simplefilter("ignore")
+import numpy as np
+import json
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import StratifiedKFold, train_test_split, GridSearchCV, KFold
+from sklearn.metrics import classification_report, accuracy_score
+from sklearn.feature_extraction.text import TfidfVectorizer
+import re
+#importing necessary libraries for Bangla Natural Language Processing Toolkit
+#from banglanltk import word_tokenize, stemmer
+from bnlp import CleanText, BengaliCorpus
+from bnlp import NLTKTokenizer
+
+# Initializing CleanText from bnlp
+cleaner = CleanText(
+   fix_unicode=True,
+   unicode_norm=True,
+   unicode_norm_form="NFKC",
+   remove_url=False,
+   remove_email=False,
+   remove_emoji=False,
+   remove_number=False,
+   remove_digits=False,
+   remove_punct=False,
+   replace_with_url="<URL>",
+   replace_with_email="<EMAIL>",
+   replace_with_number="<NUMBER>",
+   replace_with_digit="<DIGIT>",
+   replace_with_punct="<PUNC>"
+)
+
+tokenizer = NLTKTokenizer()
+
+# Defining the preprocessing function
+def preprocess_text(text):
+    
+    # Cleaning the text using BNLP's CleanText
+    cleaned_text = cleaner(text)
+    
+    # Further cleaning
+    cleaned_text = re.sub(r'See Translation', '', cleaned_text, flags=re.IGNORECASE) # Remove unwanted phrases
+    cleaned_text = re.sub(r'।+', '।', cleaned_text)  # Replace multiple '।' with a single one
+    cleaned_text = re.sub(r',+', ',', cleaned_text)  # Replace multiple ',' with a single one
+    cleaned_text = re.sub(r'\?+', '?', cleaned_text)   # Replace multiple '?' with a single one
+    cleaned_text = re.sub(r'…+', '…', cleaned_text)  # Replace multiple '…' with a single one
+    cleaned_text = re.sub(r'\.+', '', cleaned_text)    # Remove specific punctuation marks (.)
+
+    # Removing digits and non-Bengali letters if needed
+    # cleaned_text = re.sub(f"[{BengaliCorpus.digits}]", '', cleaned_text)  # Remove Bengali digits
+    # cleaned_text = re.sub(f"[{BengaliCorpus.letter}]", '', cleaned_text)  # Remove Bengali letters if required
+
+    # Tokenizing the text using BNLP's NLTKTokenizer
+    tokens = tokenizer.sentence_tokenize(cleaned_text)
+    
+    # Removing stopwords
+    stopwords = BengaliCorpus.stopwords if hasattr(BengaliCorpus, 'stopwords') else []
+    tokens = [token for token in tokens if token.lower() not in stopwords] # Lowercase the tokens
+    #tokens = [token.lower() for token in tokens]
+    
+    # Applying stemming
+    # stemmed_tokens = [stemmer(token) for token in tokens] #not needed
+
+    # Reassembling the text
+    #Joining tokens into a single string                                       
+    cleaned_text = ' '.join(tokens)    #cleaned_text = ' '.join(stemmed_tokens)
+    
+    cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip() # Remove extra spaces
+    
+    return cleaned_text
+
+# Applying preprocessing
+data['processed_text'] = data['conversation_text'].apply(preprocess_text)
+
+# Printing processed text by sentiment
+sentiments = ['neutral', 'positive', 'negative']  # Adjust based on your data
+for sentiment in sentiments:
+    print(f"Sentiment: {sentiment}")
+    subset = data[data['sentiment'] == sentiment]
+    for index, row in subset.iterrows():
+        print(f"Processed Text: {row['processed_text']}")
+    print("\n" + "=" * 80 + "\n")
+
+# Feature Engineering with TF-IDF
+tfidf_vectorizer = TfidfVectorizer()
+X = tfidf_vectorizer.fit_transform(data['processed_text'])
+y = LabelEncoder().fit_transform(data['sentiment'])
+
+#Generating vocabulary size for LSTM's max_features (unique word count)
+vocab_size = len(tfidf_vectorizer.get_feature_names_out())
+print(f"Vocabulary Size: {vocab_size}")
+
+# Models for comparison
+from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier
+# TensorFlow/Keras for LSTM
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, LSTM, Embedding, SpatialDropout1D, Dropout
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.callbacks import History
+
+# Splitting the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Ensuring X_train_text and X_test_text are lists
+X_train_text, X_test_text, y_train_text, y_test_text = train_test_split(data['processed_text'], data['sentiment'], test_size=0.2, random_state=42)
+X_train_text = X_train_text.tolist()
+X_test_text = X_test_text.tolist()
+
+!pip install unsloth
+!pip install transformers datasets torch
+!pip install transformers[torch]
+!pip install accelerate -U
+
+import torch
+torch.cuda.is_available() #Checking if pytoch getting the access of cuda cores from env
+
+from huggingface_hub import login
+login(token="") #hidden for security
+
+#imported "cognitivecomputations/dolphin-2.9.4-llama3.1-8b" model
+
+# Importing necessary libraries
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, Trainer, TrainingArguments
+import torch
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+
+# Function to fine-tune the Dolphin 2.9.4 Llama 3.1 8b model
+def fine_tune_llama(X_train, X_test, y_train, y_test):
+    # Specifying the model name (Dolphin 2.9.4 Llama 3.1 8b)
+    model_name = "cognitivecomputations/dolphin-2.9.4-llama3.1-8b"
+
+    # Step 1: Loading the model and tokenizer
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(model_name)  # Load the tokenizer for tokenizing text data
+        model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=len(np.unique(y_train)))  # Load the model for classification
+    except OSError as e:
+        print(f"Error loading model or tokenizer: {e}")
+        return None, None
+
+    # Ensureing the inputs are lists of strings
+    X_train = X_train.tolist() if isinstance(X_train, pd.Series) else X_train
+    X_test = X_test.tolist() if isinstance(X_test, pd.Series) else X_test
+
+
+    # Step 2: Tokenizing the training and test data
+    train_encodings = tokenizer(X_train, truncation=True, padding=True, return_tensors="pt", max_length=512) # Tokenize training data
+    val_encodings = tokenizer(X_test, truncation=True, padding=True, return_tensors="pt", max_length=512) # Tokenize test data
+ 
+    # Convert string labels to numerical format
+    label_encoder = LabelEncoder()
+    y_train_encoded = label_encoder.fit_transform(y_train)
+    y_test_encoded = label_encoder.transform(y_test)
+
+    # Step 3: Creating custom dataset objects
+    class CustomDataset(torch.utils.data.Dataset):
+        def __init__(self, encodings, labels):
+            self.encodings = encodings  # Encoded input data
+            self.labels = labels  # Labels for sentiment classification
+
+        def __getitem__(self, idx):
+            # Returns a dictionary of the tokenized input along with the label at the given index
+            item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
+            item['labels'] = torch.tensor(self.labels[idx], dtype=torch.long)  # Ensure label is of type long
+            return item
+
+        def __len__(self):
+            # Returns the total number of samples in the dataset
+            return len(self.labels)
+
+     # Debugging: Checking if the lengths match
+    print(f"Train encodings length: {len(train_encodings['input_ids'])}, Train labels length: {len(y_train_encoded)}")
+    print(f"Val encodings length: {len(val_encodings['input_ids'])}, Val labels length: {len(y_test_encoded)}")
+
+    # Step 4: Preparing datasets for training and validation
+    train_dataset = CustomDataset(train_encodings, y_train_encoded)  # Training dataset
+    val_dataset = CustomDataset(val_encodings, y_test_encoded)  # Validation dataset
+
+    # Step 5: Defining training arguments
+    training_args = TrainingArguments(
+        output_dir='./results',  # Directory to save model checkpoints and results
+        evaluation_strategy="epoch",  # Evaluating model at the end of each epoch
+        per_device_train_batch_size=2,  # Training batch size per GPU/CPU
+        per_device_eval_batch_size=2,  # Evaluation batch size per GPU/CPU
+        num_train_epochs=3,  # Number of training epochs
+        weight_decay=0.01,  # Weight decay for regularization
+        gradient_accumulation_steps=4,  # Accumulating gradients over 4 steps
+        fp16=True,  # Enabling mixed precision training
+        no_cuda=True,  # Forcing training on CPU
+    )
+
+    # Step 6: Creating a Trainer instance for training and evaluation
+    trainer = Trainer(
+        model=model,  # The model to fine-tune
+        args=training_args,  # Training arguments defined earlier
+        train_dataset=train_dataset,  # Training dataset
+        eval_dataset=val_dataset,  # Validation dataset
+    )
+
+    # Step 7: Training the model
+    trainer.train()  # Fine-tuning the model using the provided dataset
+
+    # Step 8: Evaluating the model on the test data
+    eval_results = trainer.evaluate()  # Evaluating and getting evaluation results
+
+    # Step 9: Extracting evaluation metrics (accuracy and classification report)
+    accuracy = eval_results.get('eval_accuracy', None)  # Getting evaluation accuracy
+    return accuracy  # Return the accuracy
+
+# X contains the text data and y contains the sentiment labels
+# Resetting indices after splitting to avoid KeyError issues
+X_train_text, X_test_text, y_train_text, y_test_text = train_test_split(data['processed_text'], data['sentiment'], test_size=0.2, random_state=42)
+
+# Resetting indices to ensure alignment
+X_train_text.reset_index(drop=True, inplace=True)
+X_test_text.reset_index(drop=True, inplace=True)
+y_train_text.reset_index(drop=True, inplace=True)
+y_test_text.reset_index(drop=True, inplace=True)
+
+# Fine-tuning the model
+llama_accuracy = fine_tune_llama(X_train_text, X_test_text, y_train_text, y_test_text)
+
+print("Llama Model Accuracy:", llama_accuracy)
+
+
+Console Output:
+
+Loading checkpoint shards: 100%
+ 4/4 [00:38<00:00,  8.26s/it]
+
+Train encodings length: 79, Train labels length: 79
+Val encodings length: 20, Val labels length: 20
+

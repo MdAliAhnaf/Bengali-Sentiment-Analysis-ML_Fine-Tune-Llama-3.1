@@ -1,0 +1,1 @@
+{"LogisticRegression": 0.75, "MultinomialNB": 0.65, "RandomForestClassifier": 0.7, "XGBClassifier": 0.6, "LGBMClassifier": 0.5}
