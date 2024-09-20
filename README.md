@@ -11,8 +11,7 @@ This repository contains code and documentation for performing **sentiment analy
 6. [Fine-Tuning Llama 3.1](#fine-tuning-llama-31)
 7. [Challenges and Limitations](#challenges-and-limitations)
 8. [Results](#results)
-9. [How to Run](#how-to-run)
-10. [Future Improvements](#future-improvements)
+9. [Future Improvements](#future-improvements)
 
 ## Project Overview
 
@@ -89,8 +88,6 @@ Due to **licensing issues with Meta’s Llama 3.1 model**, the Dolphin 2.9.4 Lla
 
 ### Fine-Tuning Llama:
 - Due to hardware limitations, fine-tuning the Dolphin 2.9.4 Llama 3.1 model was unsuccessful, with frequent kernel crashes.
-
-## How to Run
 
 ### Prerequisites:
 - Python 3.8+
