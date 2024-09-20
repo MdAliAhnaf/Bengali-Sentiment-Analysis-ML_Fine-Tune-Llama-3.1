@@ -7,11 +7,10 @@ This repository contains code and documentation for performing **sentiment analy
 2. [Key Features](#key-features)
 3. [Dataset](#dataset)
 4. [Preprocessing](#preprocessing)
-5. [Models Used](#models-used)
+5. [Used Models & Results](#Used-Models-&-Results)
 6. [Fine-Tuning Llama 3.1](#fine-tuning-llama-31)
 7. [Challenges and Limitations](#challenges-and-limitations)
-8. [Results](#results)
-9. [Future Improvements](#future-improvements)
+8. [Future Improvements](#future-improvements)
 
 ## Project Overview
 
@@ -38,7 +37,7 @@ The dataset consists of an Excel file containing **Bengali text** and **sentimen
 - **Tokenization:** Used `sentence_tokenize` from BNLP's `NLTKTokenizer` to preserve punctuation and improve model input quality.
 - **Stemmer Issues:** Initial use of the `banglanltk` stemmer truncated words too aggressively (e.g., ‘আমাকে’ to ‘আমা’), so stemming was excluded.
 
-## Models Used
+## Used Models & Results
 
 | Model                     | Accuracy (K-Fold) | Accuracy (Stratified) | Best Parameters                           |
 |---------------------------|------------------|-----------------------|-------------------------------------------|
