@@ -7,6 +7,7 @@ This repository contains code and documentation for performing **sentiment analy
 2. [Key Features](#key-features)
 3. [Dataset](#dataset)
 4. [Preprocessing](#preprocessing)
+5. [Vectorization](#vectorization)
 5. [Used Models & Results](#Used-Models-&-Results)
 6. [Fine-Tuning Llama 3.1](#fine-tuning-llama-31)
 7. [Challenges and Limitations](#challenges-and-limitations)
@@ -29,13 +30,18 @@ This project aims to:
 - **Extensive documentation of challenges and limitations**, particularly with hardware and NLP toolkit selection.
 
 ## Dataset
-The dataset consists of an Excel file containing **Bengali text** and **sentiment labels** (positive, negative, neutral). The data is processed using **BNLP** for text tokenization and cleaning.
+- **Source:** The dataset consists of an Excel file containing **Bengali text** and **sentiment labels** (positive, negative, neutral). The data is processed using **BNLP** for text tokenization and cleaning.
+- **Loading Method:** Utilized `pandas.read_excel()` to load the dataset.
 
 ## Preprocessing
-- **Text Cleaning:** Used BNLP’s `CleanText` module with custom parameters (`fix_unicode=True`, `unicode_norm=True`) to handle Unicode issues.
-- **Punctuation Removal:** Applied `re.sub()` to remove unwanted strings like "See Translation" and redundant punctuation.
-- **Tokenization:** Used `sentence_tokenize` from BNLP's `NLTKTokenizer` to preserve punctuation and improve model input quality.
-- **Stemmer Issues:** Initial use of the `banglanltk` stemmer truncated words too aggressively (e.g., ‘আমাকে’ to ‘আমা’), so stemming was excluded.
+- **Text Cleaning:** Used BNLP’s `CleanText` module with custom parameters (`fix_unicode=True`, `unicode_norm=True`) to handle Unicode errors and clean the text output effectively.
+- **Unwanted Strings Removal:** Removed the string "See Translation" and reduced duplicate punctuation marks such as ‘।’ (Bengali full stop), ‘,’ (comma), ‘?’ (question mark), and ‘…’ (ellipsis) using `re.sub()`.
+- **Sentence Tokenization:** Used BNLP's `NLTKTokenizer` for tokenizing text at the sentence level. This was necessary because `word_tokenize` removed punctuation, which was crucial for sentiment analysis.
+- **Stemmer Issue:** Initially employed stemmers from `banglanltk`, but they truncated words undesirably (e.g., ‘আমাকে’ to ‘আমা’), leading to loss of meaning. Consequently, stemming was excluded from the preprocessing pipeline.
+
+## Vectorization
+  - Used `TfidfVectorizer` to transform the cleaned text into TF-IDF feature vectors. Converted the sparse matrix to a dense format with `.toarray()` to facilitate model training.
+
 
 ## Used Models & Results
 
@@ -48,8 +54,14 @@ The dataset consists of an Excel file containing **Bengali text** and **sentimen
 | LightGBM                   | 50%              | 55%                   | {'learning_rate': 0.1, 'n_estimators': 100'} |
 | LSTM                       | 55%              | 55%                   | Default                                   |
 
-## Fine-Tuning Llama 3.1
+### Analysis
+- **Best Performance:** Logistic Regression and Random Forest were the top performers with 75% accuracy, indicating that simpler models combined with effective text vectorization can be highly effective for sentiment analysis.
+- **LSTM Performance:** The LSTM model exhibited poor performance (55% accuracy). The small dataset size and high variance likely contributed to its underperformance.
 
+## Fine-Tuning Llama 3.1
+### Initial Issues
+- **Licensing Restrictions:** Faced difficulties accessing Llama 3.1 models due to licensing issues. Applied for access, but was pending approval.
+- **Model Choice:** Used Dolphin 2.9.4 Llama 3.1 8B model from Hugging Face as an alternative.
 Due to **licensing issues with Meta’s Llama 3.1 model**, the Dolphin 2.9.4 Llama 3.1 (8B) model was used as an alternative for fine-tuning. This model is based on Meta's **Llama 3.1 8B** with 8.03 billion parameters.
 
 ### Model Details:
@@ -63,11 +75,13 @@ Due to **licensing issues with Meta’s Llama 3.1 model**, the Dolphin 2.9.4 Lla
   - Gradient accumulation steps: 4
   - Optimizer: Adam
 
-### Challenges:
+### Challenges and Limitations
 - **Hardware Limitation:** The project was conducted on a **GTX 1050Ti with 4GB VRAM**, which proved insufficient for fine-tuning large models like Llama 3.1.
 - **Workarounds:** Forced the use of CPU (`no_cuda=True`), but kernel crashes occurred frequently despite adjustments in batch size, gradient accumulation, and mixed precision (`fp16=True`).
-
-## Challenges and Limitations
+- Ensuring that important parts of Bengali text, especially punctuation, were preserved during preprocessing.
+- Finding a reliable NLP library for Bengali text processing, which led to the exploration of both BNLP and `banglanltk`.
+- **Data Format:** Conversion of TF-IDF vectorized data to a dense format suitable for LSTM was required.
+- **Dataset Size:** The limited dataset size (99 rows) led to overfitting and hampered the model's ability to generalize.
 
 ### NLP Toolkit Challenges:
 - **Stemming Issues:** The Bangla stemmer truncated important parts of the text, so stemming was excluded.
@@ -77,9 +91,8 @@ Due to **licensing issues with Meta’s Llama 3.1 model**, the Dolphin 2.9.4 Lla
 - **Sparse Matrix Conversion:** The output from TF-IDF vectorization was a sparse matrix, which had to be converted to a dense format for model compatibility.
 
 ### Hardware Constraints:
-- **GPU Memory:** 4GB VRAM was insufficient to fine-tune the Llama 3.1 model, even with optimizations like smaller batch sizes and gradient accumulation.
-
-## Results
+- **GPU VRAM Limitation:** 4GB VRAM was insufficient to fine-tune the Llama 3.1 model, even with optimizations like smaller batch sizes and gradient accumulation.
+- **CPU Use:** Forced CPU use due to GPU constraints, leading to frequent kernel crashes despite adjustments.
 
 ### Performance Comparison:
 - **Best Performing Models:** Logistic Regression and Random Forest, both achieving 75% accuracy with the Stratified K-Fold cross-validation method.
