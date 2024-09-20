@@ -123,10 +123,10 @@ Due to **licensing issues with Meta’s Llama 3.1 model**, the Dolphin 2.9.4 Lla
 
 
 ## Future Improvements
-### Data Augmentation: Augment the dataset with more samples to improve LSTM and other deep learning model performance.
-### Hardware Upgrades: Utilize cloud-based GPU services for large model fine-tuning (e.g., AWS-SageMaker, Google Colab, Kaggle).
-### Explore Lightweight Models: Investigate parameter-efficient models like QLoRA or 4-bit quantized models for fine-tuning on resource-constrained systems.
-### NLP Toolkit Enhancements: Continue refining the preprocessing pipeline, especially for tasks like stemming and tokenization in Bengali.
+- Data Augmentation: Augment the dataset with more samples to improve LSTM and other deep learning model performance.
+- Hardware Upgrades: Utilize cloud-based GPU services for large model fine-tuning (e.g., AWS-SageMaker, Google Colab, Kaggle).
+- Explore Lightweight Models: Investigate parameter-efficient models like QLoRA or 4-bit quantized models for fine-tuning on resource-constrained systems.
+- NLP Toolkit Enhancements: Continue refining the preprocessing pipeline, especially for tasks like stemming and tokenization in Bengali.
 
 ## License
-### This project is licensed under the MIT License. See the LICENSE file for more details.
+- This project is licensed under the MIT License. See the LICENSE file for more details.
